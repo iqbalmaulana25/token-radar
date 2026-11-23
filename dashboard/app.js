@@ -69,13 +69,19 @@ function masthead() {
 }
 
 function modelStrip() {
+  var M = D.model;
   return (
     '<section class="model-strip"><h2>How the model prices a launch</h2>' +
-    '<p><span class="formula">implied value = TVL × category multiple × momentum × maturity × breadth.</span> ' +
+    '<p><span class="formula">implied value = TVL × category multiple × scale × momentum.</span> ' +
     'The multiple is the median market-cap-to-TVL ratio of traded tokens in the protocol\'s own category ' +
     '(global median <strong>' + Number(D.global_multiple).toFixed(3) + '×</strong> across ' + D.live_size + ' comparables), ' +
-    'shrunk toward the global figure where a category is thin. Momentum scales it by the 7-day TVL change (clamped), ' +
-    'maturity by how long the protocol has run with no token, breadth by the chains it serves. ' +
+    'shrunk toward the global figure with fitted shrinkage K=' + M.shrinkage_k + ' where a category is thin. ' +
+    'Scale bends value by TVL<sup>' + M.elasticity + '</sup> around $100M, so a dollar of TVL in a large protocol prices ' +
+    'a little lower than in a small one; momentum scales it by the 7-day TVL change (clamped to ' + M.growth_floor_pct + '%…+' +
+    M.growth_cap_pct + '%, weight ' + M.growth_weight + '). ' +
+    'Every term was fitted and tested held-out twice before it shipped, and three launch-radar-2 terms — ratio winsorising, ' +
+    'an age premium, a per-chain premium — were dropped for failing that test: the full record, with its errors, ' +
+    'is under <strong>Method &amp; validation</strong>. ' +
     'No protocol name is special-cased, and a protocol whose token already trades is never ranked: it sits in the comparables.</p></section>'
   );
 }
@@ -85,6 +91,7 @@ function tabs(active) {
     '<nav class="tabs">' +
     '<button class="tab" data-nav="board" aria-selected="' + (active === 'board') + '">The board</button>' +
     '<button class="tab" data-nav="live" aria-selected="' + (active === 'live') + '">Already trading — the comparables</button>' +
+    '<button class="tab" data-nav="method" aria-selected="' + (active === 'method') + '">Method &amp; validation</button>' +
     '</nav>'
   );
 }
@@ -268,11 +275,12 @@ function detailView(slug) {
     '<tr><td>Total value locked</td><td class="num">' + money(r.tvl_usd) + '</td></tr>' +
     '<tr><td>Category multiple (median, shrunk)</td><td>' + mult(m.multiple) + '</td></tr>' +
     '<tr><td>Traded comparables in category</td><td class="num">' + m.category_comparables + '</td></tr>' +
+    '<tr><td>Scale (TVL<sup>' + D.model.elasticity + '</sup> around $100M)</td><td>' + factor(m.scale) + '</td></tr>' +
     '<tr><td>Momentum (7d TVL ' + (r.change_7d == null ? 'unreported' : (r.change_7d > 0 ? '+' : '') + r.change_7d + '%') + ')</td><td>' + factor(m.momentum) + '</td></tr>' +
-    '<tr><td>Maturity (' + ageText(r.age_days) + ' with no token)</td><td>' + factor(m.maturity) + '</td></tr>' +
-    '<tr><td>Breadth (' + r.chains.length + (r.chains.length === 1 ? ' chain' : ' chains') + ')</td><td>' + factor(m.breadth) + '</td></tr>' +
     '<tr><td>Implied value</td><td class="num">' + money(val) + '</td></tr></table>' +
-    '<p>Range uses the category\'s p25 (' + Number(m.multiple_low).toFixed(3) + '×) and p75 (' + Number(m.multiple_high).toFixed(3) + '×) multiples in place of the median, all other factors unchanged.</p></section>' +
+    '<p>Range uses the category\'s p25 (' + Number(m.multiple_low).toFixed(3) + '×) and p75 (' + Number(m.multiple_high).toFixed(3) + '×) multiples in place of the median, all other factors unchanged. ' +
+    'Age (' + ageText(r.age_days) + ' with no token) and breadth (' + r.chains.length + (r.chains.length === 1 ? ' chain' : ' chains') + ') stay in the record and shape the farm plan, ' +
+    'but no longer move the price: both premiums were dropped after the held-out splits disagreed about them — see Method &amp; validation.</p></section>' +
     '<section class="card"><h3>The record</h3><table>' +
     '<tr><td>First tracked by DefiLlama</td><td class="num">' + esc(r.listed_at || 'unrecorded') + '</td></tr>' +
     '<tr><td>Age at snapshot</td><td class="num">' + (r.age_days == null ? 'unrecorded' : r.age_days + ' days') + '</td></tr>' +
@@ -313,6 +321,75 @@ function liveView() {
   );
 }
 
+/* ---------- method & validation ---------- */
+
+function mdale(v) { return Number(v).toFixed(3); }
+function errFactor(v) { return '≈' + Math.exp(v).toFixed(1) + '×'; }
+function pctShare(v) { return Math.round(v * 100) + '%'; }
+
+function methodView() {
+  var V = D.validation, M = D.model;
+  var splitRows = V.splits.map(function (s) {
+    return '<tr><td>' + esc(s.name) + '</td><td class="num">' + s.train_n + '</td><td class="num">' + s.test_n + '</td>' +
+      '<td class="num">' + mdale(s.base_mdale) + '</td><td class="num">' + mdale(s.v2_mdale) + '</td>' +
+      '<td class="num">' + mdale(s.selected_mdale) + '</td><td class="num">' + mdale(s.shipped_mdale) + '</td></tr>';
+  }).join('');
+  function termCell(s) {
+    var pill = s.kept ? '<span class="pill keep">kept</span>' : '<span class="pill drop">dropped</span>';
+    return '<td>' + esc(s.fitted_variant) + '<br><span class="num">' + mdale(s.heldout_before) + ' → ' + mdale(s.heldout_after) + '</span> ' + pill + '</td>';
+  }
+  var termRows = V.splits[0].steps.map(function (st, i) {
+    var shipped = null;
+    V.refit.forEach(function (f) { if (f.term === st.term) shipped = f; });
+    return '<tr><td>' + esc(st.label) + '</td>' + termCell(st) + termCell(V.splits[1].steps[i]) +
+      '<td>' + (shipped ? esc(shipped.variant) : '<span class="faint">not in the model</span>') + '</td></tr>';
+  }).join('');
+  var a = V.splits[0], b = V.splits[1];
+  return (
+    masthead() + tabs('method') +
+    '<div class="cards"><section class="card" style="grid-column:1/-1"><h3>The test every term had to pass</h3>' +
+    '<p>A launch model can only be scored where the answer is known: the ' + V.traded_n + ' protocols in the snapshot whose token ' +
+    'already trades. The harness (<span class="num">tools/validate.mjs</span> in the entry\'s repository) splits them two ways — ' +
+    'by a hash of the slug, a coin flip no property can sway, and by listing time, fitting the past and testing the future. ' +
+    'On each split it walks the candidate terms in a fixed order: a term\'s variants are fitted on the training half alone, and the term ' +
+    'is kept only if the fitted variant cuts the held-out half\'s error by at least ' + (V.keep_margin * 100).toFixed(1) + '% relative. ' +
+    'A term ships in the model below only if <strong>both</strong> splits keep it; its shipped variant is the one with the lowest ' +
+    'combined held-out error across the two splits.</p>' +
+    '<p>Error is the median absolute log error (MdALE) of the implied value against the market cap the protocol actually carries: ' +
+    'an MdALE of 1.21 means the typical held-out price was off by a factor of ' + errFactor(a.shipped_mdale) + '. It is a hard test — ' +
+    'a model can be directionally right about nearly everything and still post a large MdALE — and it is the only honest one available.</p>' +
+    '<table><thead><tr><th>Split</th><th>Train</th><th>Held out</th><th>Bare model</th><th>launch-radar-2 (hand-set)</th><th>Selected on this split</th><th>Shipped model, refitted here</th></tr></thead>' +
+    '<tbody>' + splitRows + '</tbody></table>' +
+    '<p>On the hash split the selected terms priced ' + pctShare(a.selected_within_2x) + ' of held-out protocols within 2× of their market cap; ' +
+    'on the time split, ' + pctShare(b.selected_within_2x) + '. The shipped model beats the hand-set launch-radar-2 on both splits ' +
+    '(' + mdale(a.shipped_mdale) + ' against ' + mdale(a.v2_mdale) + '; ' + mdale(b.shipped_mdale) + ' against ' + mdale(b.v2_mdale) + ') — ' +
+    'a real improvement, and a modest one, which is what the numbers say and all they say.</p></section></div>' +
+    '<div class="cards"><section class="card" style="grid-column:1/-1"><h3>Every term, both splits</h3>' +
+    '<table><thead><tr><th>Term</th><th>Split A — fitted variant, held-out error</th><th>Split B — fitted variant, held-out error</th><th>Shipped</th></tr></thead>' +
+    '<tbody>' + termRows + '</tbody></table>' +
+    '<p>Two verdicts deserve a plain reading. Winsorising the comparable ratios changed no held-out price at all — the median a price ' +
+    'rests on is already robust — so the clamp is gone and the p25–p75 ranges show the tails as they are. The maturity premium ' +
+    'split its verdicts: it earned its place on the time split (−3.0%) and cost accuracy on the hash split (+0.5%), and the both-splits ' +
+    'rule drops a term the evidence argues about. Age still shapes each farm plan\'s qualifying window; it no longer inflates a price.</p></section></div>' +
+    '<div class="cards">' +
+    '<section class="card"><h3>What ships — model ' + esc(D.model_version) + '</h3><table>' +
+    '<tr><td>Category multiple</td><td>median mcap/TVL of the category, shrinkage K=' + M.shrinkage_k + ', global median below ' + M.min_category_samples + ' comparables</td></tr>' +
+    '<tr><td>Scale</td><td class="num">TVL^' + M.elasticity + ' around $100M</td></tr>' +
+    '<tr><td>Momentum</td><td class="num">1 + ' + M.growth_weight + ' × clamp(7d change, ' + M.growth_floor_pct + '%, +' + M.growth_cap_pct + '%) / 100</td></tr>' +
+    '<tr><td>Not in the price</td><td>ratio winsorising (bounds ' + M.ratio_floor + '–' + M.ratio_cap + ' only), age, chain count — tested and dropped, above</td></tr></table>' +
+    '<p>Fitted on the snapshot as of ' + esc(V.as_of) + '; reproduce every number with the harness in the repository.</p></section>' +
+    '<section class="card"><h3>What this model cannot do</h3>' +
+    '<p>Its typical held-out price is off by a factor of ' + errFactor(a.shipped_mdale) + ' on the hash split and ' + errFactor(b.shipped_mdale) + ' on the time split: ' +
+    'treat every implied value as a ranking with a wide range around it, never as a quote. The time split is the harder and more honest test — ' +
+    'protocols listed later price worse than earlier ones (bare-model error ' + mdale(b.base_mdale) + ' against ' + mdale(a.base_mdale) + '), so expect the model to drift as the market regime moves. ' +
+    (b.excluded_n ? b.excluded_n + ' of the ' + V.traded_n + ' traded protocols record no listing date and sit out the time split entirely. ' : '') +
+    'Thin categories rest on as few as ' + M.min_category_samples + ' traded tokens. And the model prices a token as if issued against the record in the snapshot: ' +
+    'it says nothing about whether or when one is issued, and a protocol\'s own announcement can make a row stale overnight.</p></section>' +
+    '</div>' +
+    footer()
+  );
+}
+
 /* ---------- routing ---------- */
 
 function render() {
@@ -320,6 +397,7 @@ function render() {
   var html;
   if (parsed.path.indexOf('p/') === 0) html = detailView(decodeURIComponent(parsed.path.slice(2)));
   else if (parsed.path === 'live') html = liveView();
+  else if (parsed.path === 'method') html = methodView();
   else html = boardView(boardState(parsed.params));
   app.innerHTML = html;
   app.setAttribute('aria-busy', 'false');
@@ -331,7 +409,8 @@ function bind() {
   var tabsEls = app.querySelectorAll('[data-nav]');
   tabsEls.forEach(function (el) {
     el.addEventListener('click', function () {
-      location.hash = el.getAttribute('data-nav') === 'live' ? '#/live' : '#/';
+      var nav = el.getAttribute('data-nav');
+      location.hash = nav === 'live' ? '#/live' : nav === 'method' ? '#/method' : '#/';
     });
   });
   var form = document.getElementById('controls');

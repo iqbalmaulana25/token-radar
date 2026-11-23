@@ -196,6 +196,17 @@ td.value { color: var(--amber); font-weight: 700; white-space: nowrap; }
 .plan li { padding: 9px 0; border-bottom: 1px solid var(--line-soft); color: var(--text); }
 .plan li:last-child { border-bottom: none; }
 
+/* ---- method & validation ---- */
+
+.faint { color: var(--faint); }
+.pill {
+  display: inline-block; padding: 1px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  vertical-align: 1px;
+}
+.pill.keep { background: #123528; color: var(--mint); border: 1px solid #1d5c40; }
+.pill.drop { background: #38222e; color: #ff8fa3; border: 1px solid #5c2f42; }
+
 /* ---- footer ---- */
 
 footer { margin-top: 30px; border-top: 1px solid var(--line-soft); padding-top: 14px; color: var(--faint); font-size: 13px; max-width: 96ch; }
