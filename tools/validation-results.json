@@ -1,0 +1,433 @@
+{
+  "as_of": "2026-11-14",
+  "traded_n": 128,
+  "keep_margin": 0.005,
+  "splits": [
+    {
+      "name": "A: hash split (slug coin flip)",
+      "train_n": 59,
+      "test_n": 69,
+      "base_heldout": {
+        "n": 69,
+        "mdale": 1.4328357645638476,
+        "bias": -0.6816706949451777,
+        "within_2x": 0.21739130434782608
+      },
+      "steps": [
+        {
+          "term": "category",
+          "label": "Category multiples (shrunk toward the global median)",
+          "fitted_variant": "category medians, shrinkage K=5",
+          "train_mdale": 1.1259980054962977,
+          "heldout_before": 1.4328357645638476,
+          "heldout_after": 1.3912480364166449,
+          "gain": 0.02902476974383873,
+          "kept": true,
+          "variants": [
+            {
+              "name": "category medians, shrinkage K=3",
+              "heldout_mdale": 1.2854499478184653
+            },
+            {
+              "name": "category medians, shrinkage K=5",
+              "heldout_mdale": 1.3912480364166449
+            },
+            {
+              "name": "category medians, shrinkage K=10",
+              "heldout_mdale": 1.3616227554109628
+            }
+          ]
+        },
+        {
+          "term": "winsorise",
+          "label": "Winsorised comparable ratios",
+          "fitted_variant": "ratios clamped to [0.01, 5]",
+          "train_mdale": 1.1259980054962977,
+          "heldout_before": 1.3912480364166449,
+          "heldout_after": 1.3912480364166449,
+          "gain": 0,
+          "kept": false,
+          "variants": [
+            {
+              "name": "ratios clamped to [0.01, 5]",
+              "heldout_mdale": 1.3912480364166449
+            },
+            {
+              "name": "ratios clamped to [0.02, 3]",
+              "heldout_mdale": 1.3912480364166449
+            },
+            {
+              "name": "ratios clamped to [0.005, 10]",
+              "heldout_mdale": 1.3912480364166449
+            }
+          ]
+        },
+        {
+          "term": "scale",
+          "label": "TVL elasticity (value scales as TVL^elasticity around $100M)",
+          "fitted_variant": "elasticity 0.95",
+          "train_mdale": 1.0689414699983502,
+          "heldout_before": 1.3912480364166449,
+          "heldout_after": 1.3307919056519104,
+          "gain": 0.043454602761163794,
+          "kept": true,
+          "variants": [
+            {
+              "name": "elasticity 0.9",
+              "heldout_mdale": 1.2989901901620193
+            },
+            {
+              "name": "elasticity 0.95",
+              "heldout_mdale": 1.3307919056519104
+            },
+            {
+              "name": "elasticity 1.05",
+              "heldout_mdale": 1.4198641702707384
+            }
+          ]
+        },
+        {
+          "term": "momentum",
+          "label": "Momentum (7-day TVL change)",
+          "fitted_variant": "growth weight 0.3",
+          "train_mdale": 1.0361659248762969,
+          "heldout_before": 1.3307919056519104,
+          "heldout_after": 1.3134073856085067,
+          "gain": 0.013063289586877705,
+          "kept": true,
+          "variants": [
+            {
+              "name": "growth weight 0.3",
+              "heldout_mdale": 1.3134073856085067
+            },
+            {
+              "name": "growth weight 0.6",
+              "heldout_mdale": 1.3348814798448103
+            },
+            {
+              "name": "growth weight 0.9",
+              "heldout_mdale": 1.3568268495248912
+            }
+          ]
+        },
+        {
+          "term": "maturity",
+          "label": "Maturity (time running with no token)",
+          "fitted_variant": "base 0.88, span 0.24",
+          "train_mdale": 1.1262074619012132,
+          "heldout_before": 1.3134073856085067,
+          "heldout_after": 1.3195034178419505,
+          "gain": -0.004641387204183779,
+          "kept": false,
+          "variants": [
+            {
+              "name": "base 0.78, span 0.44",
+              "heldout_mdale": 1.277993504417001
+            },
+            {
+              "name": "base 0.88, span 0.24",
+              "heldout_mdale": 1.3195034178419505
+            },
+            {
+              "name": "base 0.68, span 0.64",
+              "heldout_mdale": 1.295240666925423
+            }
+          ]
+        },
+        {
+          "term": "breadth",
+          "label": "Breadth (chains served)",
+          "fitted_variant": "+1.5% per extra chain",
+          "train_mdale": 1.1350683744557166,
+          "heldout_before": 1.3134073856085067,
+          "heldout_after": 1.298441219727529,
+          "gain": 0.01139491527531176,
+          "kept": true,
+          "variants": [
+            {
+              "name": "+1.5% per extra chain",
+              "heldout_mdale": 1.298441219727529
+            },
+            {
+              "name": "+3% per extra chain",
+              "heldout_mdale": 1.298441219727529
+            },
+            {
+              "name": "+5% per extra chain",
+              "heldout_mdale": 1.298441219727529
+            }
+          ]
+        }
+      ],
+      "final_heldout": {
+        "n": 69,
+        "mdale": 1.298441219727529,
+        "bias": -0.38458920611556724,
+        "within_2x": 0.2898550724637681
+      },
+      "v2_heldout": {
+        "n": 69,
+        "mdale": 1.3442454377929387,
+        "bias": -0.326940934904807,
+        "within_2x": 0.30434782608695654
+      },
+      "kept_terms": [
+        "category",
+        "scale",
+        "momentum",
+        "breadth"
+      ]
+    },
+    {
+      "name": "B: time split (fit the past, test the future)",
+      "train_n": 48,
+      "test_n": 47,
+      "excluded_n": 33,
+      "base_heldout": {
+        "n": 47,
+        "mdale": 1.6694375973199822,
+        "bias": -0.12173498791044929,
+        "within_2x": 0.2127659574468085
+      },
+      "steps": [
+        {
+          "term": "category",
+          "label": "Category multiples (shrunk toward the global median)",
+          "fitted_variant": "category medians, shrinkage K=3",
+          "train_mdale": 0.8757829946477216,
+          "heldout_before": 1.6694375973199822,
+          "heldout_after": 1.6495118726192128,
+          "gain": 0.011935591203143478,
+          "kept": true,
+          "variants": [
+            {
+              "name": "category medians, shrinkage K=3",
+              "heldout_mdale": 1.6495118726192128
+            },
+            {
+              "name": "category medians, shrinkage K=5",
+              "heldout_mdale": 1.6495118726192128
+            },
+            {
+              "name": "category medians, shrinkage K=10",
+              "heldout_mdale": 1.6698482125237675
+            }
+          ]
+        },
+        {
+          "term": "winsorise",
+          "label": "Winsorised comparable ratios",
+          "fitted_variant": "ratios clamped to [0.01, 5]",
+          "train_mdale": 0.8757829946477216,
+          "heldout_before": 1.6495118726192128,
+          "heldout_after": 1.6495118726192128,
+          "gain": 0,
+          "kept": false,
+          "variants": [
+            {
+              "name": "ratios clamped to [0.01, 5]",
+              "heldout_mdale": 1.6495118726192128
+            },
+            {
+              "name": "ratios clamped to [0.02, 3]",
+              "heldout_mdale": 1.6495118726192128
+            },
+            {
+              "name": "ratios clamped to [0.005, 10]",
+              "heldout_mdale": 1.6495118726192128
+            }
+          ]
+        },
+        {
+          "term": "scale",
+          "label": "TVL elasticity (value scales as TVL^elasticity around $100M)",
+          "fitted_variant": "elasticity 0.9",
+          "train_mdale": 0.7279947538672564,
+          "heldout_before": 1.6495118726192128,
+          "heldout_after": 1.550810828196859,
+          "gain": 0.05983651652390314,
+          "kept": true,
+          "variants": [
+            {
+              "name": "elasticity 0.9",
+              "heldout_mdale": 1.550810828196859
+            },
+            {
+              "name": "elasticity 0.95",
+              "heldout_mdale": 1.6121120854949194
+            },
+            {
+              "name": "elasticity 1.05",
+              "heldout_mdale": 1.7487715642577726
+            }
+          ]
+        },
+        {
+          "term": "momentum",
+          "label": "Momentum (7-day TVL change)",
+          "fitted_variant": "growth weight 0.3",
+          "train_mdale": 0.7363942280169464,
+          "heldout_before": 1.550810828196859,
+          "heldout_after": 1.5234266816765931,
+          "gain": 0.01765795416331053,
+          "kept": true,
+          "variants": [
+            {
+              "name": "growth weight 0.3",
+              "heldout_mdale": 1.5234266816765931
+            },
+            {
+              "name": "growth weight 0.6",
+              "heldout_mdale": 1.4952714794339883
+            },
+            {
+              "name": "growth weight 0.9",
+              "heldout_mdale": 1.524060656081744
+            }
+          ]
+        },
+        {
+          "term": "maturity",
+          "label": "Maturity (time running with no token)",
+          "fitted_variant": "base 0.88, span 0.24",
+          "train_mdale": 0.7663359701628512,
+          "heldout_before": 1.5234266816765931,
+          "heldout_after": 1.4776217085189352,
+          "gain": 0.030067067689301417,
+          "kept": true,
+          "variants": [
+            {
+              "name": "base 0.78, span 0.44",
+              "heldout_mdale": 1.532316055358912
+            },
+            {
+              "name": "base 0.88, span 0.24",
+              "heldout_mdale": 1.4776217085189352
+            },
+            {
+              "name": "base 0.68, span 0.64",
+              "heldout_mdale": 1.5829753571504952
+            }
+          ]
+        },
+        {
+          "term": "breadth",
+          "label": "Breadth (chains served)",
+          "fitted_variant": "+1.5% per extra chain",
+          "train_mdale": 0.8593474857682342,
+          "heldout_before": 1.4776217085189352,
+          "heldout_after": 1.4776217085189352,
+          "gain": 0,
+          "kept": false,
+          "variants": [
+            {
+              "name": "+1.5% per extra chain",
+              "heldout_mdale": 1.4776217085189352
+            },
+            {
+              "name": "+3% per extra chain",
+              "heldout_mdale": 1.4776217085189352
+            },
+            {
+              "name": "+5% per extra chain",
+              "heldout_mdale": 1.5201857596294808
+            }
+          ]
+        }
+      ],
+      "final_heldout": {
+        "n": 47,
+        "mdale": 1.4776217085189352,
+        "bias": 0.09504830553802776,
+        "within_2x": 0.19148936170212766
+      },
+      "v2_heldout": {
+        "n": 47,
+        "mdale": 1.6100910282605714,
+        "bias": 0.08491966644717305,
+        "within_2x": 0.19148936170212766
+      },
+      "kept_terms": [
+        "category",
+        "scale",
+        "momentum",
+        "maturity"
+      ]
+    }
+  ],
+  "shipped_terms": [
+    "category",
+    "scale",
+    "momentum"
+  ],
+  "dropped_terms": [
+    "winsorise",
+    "maturity",
+    "breadth"
+  ],
+  "refit": [
+    {
+      "term": "category",
+      "variant": "category medians, shrinkage K=3",
+      "combined_heldout_mdale": 2.934961820437678
+    },
+    {
+      "term": "scale",
+      "variant": "elasticity 0.9",
+      "combined_heldout_mdale": 2.8498010183588782
+    },
+    {
+      "term": "momentum",
+      "variant": "growth weight 0.6",
+      "combined_heldout_mdale": 2.8301529592787986
+    }
+  ],
+  "fitted_params": {
+    "ratio_floor": 0.001,
+    "ratio_cap": 50,
+    "shrinkage_k": 3,
+    "min_category_samples": 3,
+    "use_category": true,
+    "elasticity": 0.9,
+    "elasticity_ref_tvl": 100000000,
+    "growth_floor_pct": -40,
+    "growth_cap_pct": 60,
+    "growth_weight": 0.6,
+    "maturity_base": 1,
+    "maturity_span": 0,
+    "maturity_window_days": 1825,
+    "unknown_age_maturity": 1,
+    "breadth_per_chain": 0,
+    "breadth_max_chains": 7
+  },
+  "full_fit": {
+    "shipped": {
+      "n": 128,
+      "mdale": 1.2143453955245178,
+      "bias": 0.049772019362236755,
+      "within_2x": 0.2890625
+    },
+    "v2": {
+      "n": 128,
+      "mdale": 1.342837583965503,
+      "bias": 0.1540343061616744,
+      "within_2x": 0.2421875
+    }
+  },
+  "shipped_form_heldout": [
+    {
+      "split": "A: hash split (slug coin flip)",
+      "n": 69,
+      "mdale": 1.2086239416369615,
+      "bias": -0.3808491535395604,
+      "within_2x": 0.2898550724637681
+    },
+    {
+      "split": "B: time split (fit the past, test the future)",
+      "n": 47,
+      "mdale": 1.4952714794339883,
+      "bias": -0.0051653341084886735,
+      "within_2x": 0.19148936170212766
+    }
+  ]
+}

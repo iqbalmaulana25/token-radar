@@ -69,12 +69,35 @@ export class SnapshotError extends Error {
 
 export const MODEL_VERSION = 'launch-radar-2';
 
-/** The model's constants, stated in the dashboard so a reader can re-derive every value. */
-export const MODEL = {
+/** Every constant the model prices with, gathered as one set the validation harness can vary. */
+export interface ModelParams {
+  ratio_floor: number;
+  ratio_cap: number;
+  shrinkage_k: number;
+  min_category_samples: number;
+  use_category: boolean;
+  elasticity: number;
+  elasticity_ref_tvl: number;
+  growth_floor_pct: number;
+  growth_cap_pct: number;
+  growth_weight: number;
+  maturity_base: number;
+  maturity_span: number;
+  maturity_window_days: number;
+  unknown_age_maturity: number;
+  breadth_per_chain: number;
+  breadth_max_chains: number;
+}
+
+/** The launch-radar-2 parameter set: the hand-set constants the model first shipped with. */
+export const V2_PARAMS: ModelParams = {
   ratio_floor: 0.01,
   ratio_cap: 5,
   shrinkage_k: 5,
   min_category_samples: 3,
+  use_category: true,
+  elasticity: 1,
+  elasticity_ref_tvl: 100_000_000,
   growth_floor_pct: -40,
   growth_cap_pct: 60,
   growth_weight: 0.6,
@@ -84,7 +107,10 @@ export const MODEL = {
   unknown_age_maturity: 0.95,
   breadth_per_chain: 0.03,
   breadth_max_chains: 7,
-} as const;
+};
+
+/** The model's constants, stated in the dashboard so a reader can re-derive every value. */
+export const MODEL = V2_PARAMS;
 
 const DAY_MS = 86_400_000;
 
@@ -157,11 +183,11 @@ export interface Comparables {
   liveCount: number;
 }
 
-/** Build the comparable sets from the snapshot's traded protocols. */
-export function buildComparables(snapshot: Snapshot): Comparables {
+/** Build the comparable sets from a set of protocols: the whole snapshot, or one split of it. */
+export function buildComparables(protocols: SnapshotProtocol[], params: ModelParams): Comparables {
   const ratio = (p: SnapshotProtocol): number =>
-    Math.min(MODEL.ratio_cap, Math.max(MODEL.ratio_floor, p.mcap_usd! / p.tvl_usd));
-  const live = snapshot.protocols.filter((p) => p.mcap_usd !== null && p.mcap_usd > 0 && p.tvl_usd > 0);
+    Math.min(params.ratio_cap, Math.max(params.ratio_floor, p.mcap_usd! / p.tvl_usd));
+  const live = protocols.filter((p) => p.mcap_usd !== null && p.mcap_usd > 0 && p.tvl_usd > 0);
   const all = live.map(ratio);
   const groups = new Map<string, number[]>();
   for (const p of live) {
@@ -183,27 +209,28 @@ export function buildComparables(snapshot: Snapshot): Comparables {
 }
 
 /** Shrink a category statistic toward the global one by the category's sample size. */
-function shrunk(catValue: number, globalValue: number, n: number): number {
-  if (n < MODEL.min_category_samples) return globalValue;
-  return (n * catValue + MODEL.shrinkage_k * globalValue) / (n + MODEL.shrinkage_k);
+function shrunk(catValue: number, globalValue: number, n: number, params: ModelParams): number {
+  if (n < params.min_category_samples) return globalValue;
+  return (n * catValue + params.shrinkage_k * globalValue) / (n + params.shrinkage_k);
 }
 
 /** The multiples one protocol is priced with: median for the value, p25/p75 for its range. */
-export function multiplesFor(p: SnapshotProtocol, comps: Comparables): { multiple: number; low: number; high: number; categoryN: number } {
-  const cat = comps.byCategory.get(p.category ?? 'Uncategorised');
+export function multiplesFor(p: SnapshotProtocol, comps: Comparables, params: ModelParams): { multiple: number; low: number; high: number; categoryN: number } {
+  const cat = params.use_category ? comps.byCategory.get(p.category ?? 'Uncategorised') : undefined;
   if (cat === undefined) {
     return { multiple: comps.global.median, low: comps.global.p25, high: comps.global.p75, categoryN: 0 };
   }
   return {
-    multiple: shrunk(cat.median, comps.global.median, cat.n),
-    low: shrunk(cat.p25, comps.global.p25, cat.n),
-    high: shrunk(cat.p75, comps.global.p75, cat.n),
+    multiple: shrunk(cat.median, comps.global.median, cat.n, params),
+    low: shrunk(cat.p25, comps.global.p25, cat.n, params),
+    high: shrunk(cat.p75, comps.global.p75, cat.n, params),
     categoryN: cat.n,
   };
 }
 
-/** The model's three adjustment factors for one protocol, each stated in the detail view. */
+/** The model's adjustment factors for one protocol, each stated in the detail view. */
 export interface Factors {
+  scale: number;
   momentum: number;
   maturity: number;
   breadth: number;
@@ -211,19 +238,30 @@ export interface Factors {
   age: number | null;
 }
 
-/** Momentum, maturity and breadth for one protocol under the model. */
-export function factorsFor(p: SnapshotProtocol, asOf: string): Factors {
+/** Scale, momentum, maturity and breadth for one protocol under a parameter set. */
+export function factorsFor(p: SnapshotProtocol, asOf: string, params: ModelParams): Factors {
   const raw = typeof p.change_7d === 'number' && Number.isFinite(p.change_7d) ? p.change_7d : 0;
-  const growthPct = Math.min(MODEL.growth_cap_pct, Math.max(MODEL.growth_floor_pct, raw));
-  const momentum = 1 + (MODEL.growth_weight * growthPct) / 100;
+  const growthPct = Math.min(params.growth_cap_pct, Math.max(params.growth_floor_pct, raw));
+  const momentum = 1 + (params.growth_weight * growthPct) / 100;
   const age = ageDays(asOf, p.listed_at);
   const maturity =
     age === null
-      ? MODEL.unknown_age_maturity
-      : MODEL.maturity_base + MODEL.maturity_span * (Math.log(1 + age) / Math.log(1 + MODEL.maturity_window_days));
-  const extraChains = Math.min(Math.max(p.chains.length - 1, 0), MODEL.breadth_max_chains);
-  const breadth = 1 + MODEL.breadth_per_chain * extraChains;
-  return { momentum, maturity, breadth, growthPct, age };
+      ? params.unknown_age_maturity
+      : params.maturity_base + params.maturity_span * (Math.log(1 + age) / Math.log(1 + params.maturity_window_days));
+  const extraChains = Math.min(Math.max(p.chains.length - 1, 0), params.breadth_max_chains);
+  const breadth = 1 + params.breadth_per_chain * extraChains;
+  const scale = Math.pow(p.tvl_usd / params.elasticity_ref_tvl, params.elasticity - 1);
+  return { scale, momentum, maturity, breadth, growthPct, age };
+}
+
+/**
+ * The model's unrounded price of one protocol against a comparable set: what the harness
+ * scores when the protocol's token already trades and its market cap is the ground truth.
+ */
+export function predictValue(p: SnapshotProtocol, comps: Comparables, asOf: string, params: ModelParams): number {
+  const m = multiplesFor(p, comps, params);
+  const f = factorsFor(p, asOf, params);
+  return p.tvl_usd * m.multiple * f.scale * f.momentum * f.maturity * f.breadth;
 }
 
 const round4 = (n: number): number => Math.round(n * 1e4) / 1e4;
@@ -247,6 +285,7 @@ export interface BoardRow {
     multiple_low: number;
     multiple_high: number;
     category_comparables: number;
+    scale: number;
     momentum: number;
     maturity: number;
     breadth: number;
@@ -275,7 +314,7 @@ export interface RadarData {
   source: string;
   floor_usd: number;
   model_version: string;
-  model: typeof MODEL;
+  model: ModelParams;
   scanned: number;
   watchlist_size: number;
   board_size: number;
@@ -288,13 +327,13 @@ export interface RadarData {
 }
 
 /** The protocols the board ranks, most valuable first, with ranks 1..n. */
-export function buildBoard(snapshot: Snapshot, comps: Comparables): BoardRow[] {
+export function buildBoard(snapshot: Snapshot, comps: Comparables, params: ModelParams): BoardRow[] {
   const watch = new Set(snapshot.watchlist);
   const chosen = snapshot.protocols.filter((p) => watch.has(p.slug) || isRankable(p));
   const scored = chosen.map((p) => {
-    const m = multiplesFor(p, comps);
-    const f = factorsFor(p, snapshot.as_of);
-    const adj = f.momentum * f.maturity * f.breadth;
+    const m = multiplesFor(p, comps, params);
+    const f = factorsFor(p, snapshot.as_of, params);
+    const adj = f.scale * f.momentum * f.maturity * f.breadth;
     const implied = Math.max(1, Math.round(p.tvl_usd * m.multiple * adj));
     return { p, m, f, implied };
   });
@@ -322,6 +361,7 @@ export function buildBoard(snapshot: Snapshot, comps: Comparables): BoardRow[] {
       multiple_low: round4(s.m.low),
       multiple_high: round4(s.m.high),
       category_comparables: s.m.categoryN,
+      scale: round4(s.f.scale),
       momentum: round4(s.f.momentum),
       maturity: round4(s.f.maturity),
       breadth: round4(s.f.breadth),
@@ -352,11 +392,11 @@ export function liveRows(snapshot: Snapshot): LiveRow[] {
 }
 
 /** Everything the entry hands in: the ranked board and the dashboard's data. */
-export function buildRadar(snapshot: Snapshot): { board: BoardRow[]; radar: RadarData } {
-  const comps = buildComparables(snapshot);
-  const board = buildBoard(snapshot, comps);
+export function buildRadar(snapshot: Snapshot, params: ModelParams = V2_PARAMS): { board: BoardRow[]; radar: RadarData } {
+  const comps = buildComparables(snapshot.protocols, params);
+  const board = buildBoard(snapshot, comps, params);
   const categories = [...comps.byCategory.values()]
-    .filter((c) => c.n >= MODEL.min_category_samples)
+    .filter((c) => c.n >= params.min_category_samples)
     .sort((a, b) => b.n - a.n || (a.category < b.category ? -1 : 1))
     .map((c) => ({ ...c, median: round4(c.median), p25: round4(c.p25), p75: round4(c.p75) }));
   const radar: RadarData = {
@@ -364,7 +404,7 @@ export function buildRadar(snapshot: Snapshot): { board: BoardRow[]; radar: Rada
     source: snapshot.source,
     floor_usd: snapshot.floor_usd,
     model_version: MODEL_VERSION,
-    model: MODEL,
+    model: params,
     scanned: snapshot.protocols.length,
     watchlist_size: snapshot.watchlist.length,
     board_size: board.length,
