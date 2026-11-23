@@ -295,12 +295,12 @@ if (fittedOut) {
     const a = splits[0].steps.find((s) => s.term === t.key);
     const b = splits[1].steps.find((s) => s.term === t.key);
     const verdict = shippedKeys.includes(t.key) ? 'kept on both splits' : 'dropped';
-    return ` *   ${t.key}: ${verdict} (split A fitted "${a.fitted_variant}", held-out ${num(a.heldout_before)} -> ${num(a.heldout_after)}; split B fitted "${b.fitted_variant}", held-out ${num(b.heldout_before)} -> ${num(b.heldout_after)})`;
+    return `//   ${t.key}: ${verdict} (split A fitted "${a.fitted_variant}", held-out ${num(a.heldout_before)} -> ${num(a.heldout_after)}; split B fitted "${b.fitted_variant}", held-out ${num(b.heldout_before)} -> ${num(b.heldout_after)})`;
   }).join('\n');
   const splitLines = splits
     .map(
       (s, i) =>
-        ` *   ${s.name}: train ${s.train_n}, test ${s.test_n}; base MdALE ${num(s.base_heldout.mdale)}, selected MdALE ${num(s.final_heldout.mdale)}, ` +
+        `//   ${s.name}: train ${s.train_n}, test ${s.test_n}; base MdALE ${num(s.base_heldout.mdale)}, selected MdALE ${num(s.final_heldout.mdale)}, ` +
         `launch-radar-2 MdALE ${num(s.v2_heldout.mdale)}; the shipped form re-fitted on this split's train scores MdALE ${num(report.shipped_form_heldout[i].mdale)} held-out.`,
     )
     .join('\n');
@@ -316,13 +316,13 @@ ${termLines}
 // Per split:
 ${splitLines}
 
-import type { ModelParams } from './model.ts';
+import type { ModelParams, ValidationReport } from './model.ts';
 
 /** The shipped model's parameters: launch-radar-2's hand-set constants, replaced by fitted ones. */
 export const FITTED_PARAMS: ModelParams = ${JSON.stringify(fittedParams, null, 2)};
 
 /** The validation record the dashboard's method view renders: verdicts with their numbers. */
-export const VALIDATION = ${JSON.stringify(
+export const VALIDATION: ValidationReport = ${JSON.stringify(
       {
         as_of: asOf,
         traded_n: traded.length,
@@ -355,7 +355,7 @@ export const VALIDATION = ${JSON.stringify(
       },
       null,
       2,
-    )} as const;
+    )};
 `,
   );
 }

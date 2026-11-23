@@ -5,26 +5,37 @@
 // issued: the implied value is this dashboard's own conditional estimate, and every figure in
 // it is derived from the snapshot itself — no protocol name is ever special-cased.
 //
-// How a value is built (model launch-radar-2):
+// How a value is built (model launch-radar-3):
+//
+//   Every term in the price was fitted and tested held-out, twice, by tools/validate.mjs:
+//   the snapshot's 128 traded protocols were split two ways (by a hash of the slug, and by
+//   listing time), each term's variants were fitted on a training half alone, and a term
+//   shipped only if it cut the held-out half's median absolute log error by at least 0.5%
+//   on BOTH splits. The full record — verdicts and errors — is in lib/fitted.ts and is
+//   rendered in the dashboard's method view. What survived:
 //
 //   1. Comparables. Protocols whose token already trades give the market's own price of a
-//      dollar of TVL: ratio = mcap_usd / tvl_usd, winsorised to [0.01, 5] so one mania or one
-//      dead token cannot bend the scale. The board's base multiple for a protocol is the
-//      median ratio of its own category, shrunk toward the global median by the category's
-//      sample size (shrinkage K = 5): a category with many traded tokens mostly speaks for
-//      itself, a thin one mostly borrows the global figure. Categories with fewer than 3
-//      traded comparables use the global median outright.
-//   2. Momentum. Seven-day TVL growth, clamped to [-40, +60] percent, scales the value by
-//      1 + 0.6 * growth / 100: a protocol gathering TVL is worth more than a shrinking one
-//      with the same stock, and the clamp keeps one hot week from dominating.
-//   3. Maturity. Days since DefiLlama first tracked the protocol (listed_at to the snapshot's
-//      as_of), log-scaled over five years: 0.78 + 0.44 * ln(1 + age) / ln(1 + 1825). A record
-//      that has survived years with no token supports a higher conditional value than a
-//      fortnight's. An unknown listing date scores a neutral 0.95.
-//   4. Breadth. Each chain beyond the first, up to seven, adds 3%: distribution across chains
-//      is part of what a token would represent.
+//      dollar of TVL: ratio = mcap_usd / tvl_usd. The board's base multiple for a protocol
+//      is the median ratio of its own category, shrunk toward the global median by the
+//      category's sample size (fitted shrinkage K = 3): a category with many traded tokens
+//      mostly speaks for itself, a thin one mostly borrows the global figure. Categories
+//      with fewer than 3 traded comparables use the global median outright.
+//   2. Scale. A dollar of TVL in a large protocol prices lower than in a small one: the
+//      value scales as TVL^0.9 around a $100M reference (fitted elasticity 0.9), so implied
+//      value grows a little slower than TVL itself.
+//   3. Momentum. Seven-day TVL growth, clamped to [-40, +60] percent, scales the value by
+//      1 + 0.6 * growth / 100 (fitted weight 0.6): a protocol gathering TVL is worth more
+//      than a shrinking one with the same stock, and the clamp keeps one hot week from
+//      dominating.
 //
-//   implied_value_usd = round(tvl_usd * multiple * momentum * maturity * breadth)
+//   implied_value_usd = round(tvl_usd * multiple * scale * momentum)
+//
+//   Three launch-radar-2 terms were tested the same way and dropped, and the method view
+//   shows their numbers: winsorising the comparable ratios changed no held-out price
+//   (medians are already robust), a maturity premium for age helped on the time split but
+//   cost accuracy on the hash split, and a per-chain breadth premium likewise split its
+//   verdicts. Age and chains still appear in each protocol's record and its farm plan;
+//   they no longer move its price.
 //
 // The detail view also carries a range: the same product with the category's 25th and 75th
 // percentile ratios (shrunk the same way) in place of the median.
@@ -67,7 +78,9 @@ export class SnapshotError extends Error {
   }
 }
 
-export const MODEL_VERSION = 'launch-radar-2';
+import { FITTED_PARAMS, VALIDATION } from './fitted.ts';
+
+export const MODEL_VERSION = 'launch-radar-3';
 
 /** Every constant the model prices with, gathered as one set the validation harness can vary. */
 export interface ModelParams {
@@ -109,8 +122,46 @@ export const V2_PARAMS: ModelParams = {
   breadth_max_chains: 7,
 };
 
-/** The model's constants, stated in the dashboard so a reader can re-derive every value. */
-export const MODEL = V2_PARAMS;
+/** The shipped model's constants, stated in the dashboard so a reader can re-derive every value. */
+export const MODEL = FITTED_PARAMS;
+
+/** One term's held-out trial on one split, as the harness recorded it. */
+export interface ValidationStep {
+  term: string;
+  label: string;
+  fitted_variant: string;
+  heldout_before: number;
+  heldout_after: number;
+  kept: boolean;
+}
+
+/** One split's selection walk: sizes, the error at each stage, and every term's verdict. */
+export interface ValidationSplit {
+  name: string;
+  train_n: number;
+  test_n: number;
+  excluded_n?: number;
+  base_mdale: number;
+  selected_mdale: number;
+  v2_mdale: number;
+  shipped_mdale: number;
+  base_within_2x: number;
+  selected_within_2x: number;
+  steps: ValidationStep[];
+}
+
+/** The whole validation record: what the method view renders and the README claims rest on. */
+export interface ValidationReport {
+  as_of: string;
+  traded_n: number;
+  keep_margin: number;
+  splits: ValidationSplit[];
+  shipped_terms: string[];
+  dropped_terms: string[];
+  refit: { term: string; variant: string; combined_heldout_mdale: number }[];
+  full_fit_shipped_mdale: number;
+  full_fit_v2_mdale: number;
+}
 
 const DAY_MS = 86_400_000;
 
@@ -315,6 +366,7 @@ export interface RadarData {
   floor_usd: number;
   model_version: string;
   model: ModelParams;
+  validation: ValidationReport;
   scanned: number;
   watchlist_size: number;
   board_size: number;
@@ -365,8 +417,8 @@ export function buildBoard(snapshot: Snapshot, comps: Comparables, params: Model
       momentum: round4(s.f.momentum),
       maturity: round4(s.f.maturity),
       breadth: round4(s.f.breadth),
-      implied_low_usd: Math.max(1, Math.round(s.p.tvl_usd * s.m.low * s.f.momentum * s.f.maturity * s.f.breadth)),
-      implied_high_usd: Math.max(1, Math.round(s.p.tvl_usd * s.m.high * s.f.momentum * s.f.maturity * s.f.breadth)),
+      implied_low_usd: Math.max(1, Math.round(s.p.tvl_usd * s.m.low * s.f.momentum * s.f.maturity * s.f.breadth * s.f.scale)),
+      implied_high_usd: Math.max(1, Math.round(s.p.tvl_usd * s.m.high * s.f.momentum * s.f.maturity * s.f.breadth * s.f.scale)),
     },
     farm_steps: farmSteps(s.p, s.f.age),
   }));
@@ -392,7 +444,7 @@ export function liveRows(snapshot: Snapshot): LiveRow[] {
 }
 
 /** Everything the entry hands in: the ranked board and the dashboard's data. */
-export function buildRadar(snapshot: Snapshot, params: ModelParams = V2_PARAMS): { board: BoardRow[]; radar: RadarData } {
+export function buildRadar(snapshot: Snapshot, params: ModelParams = FITTED_PARAMS): { board: BoardRow[]; radar: RadarData } {
   const comps = buildComparables(snapshot.protocols, params);
   const board = buildBoard(snapshot, comps, params);
   const categories = [...comps.byCategory.values()]
@@ -405,6 +457,7 @@ export function buildRadar(snapshot: Snapshot, params: ModelParams = V2_PARAMS):
     floor_usd: snapshot.floor_usd,
     model_version: MODEL_VERSION,
     model: params,
+    validation: VALIDATION,
     scanned: snapshot.protocols.length,
     watchlist_size: snapshot.watchlist.length,
     board_size: board.length,
