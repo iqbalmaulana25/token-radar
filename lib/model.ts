@@ -5,9 +5,36 @@
 // issued: the implied value is this dashboard's own conditional estimate, and every figure in
 // it is derived from the snapshot itself — no protocol name is ever special-cased.
 //
-// How a value is built (model launch-radar-3):
+// How a value is built (model launch-radar-4):
 //
-//   Every term in the price was fitted and tested held-out, twice, by tools/validate.mjs:
+//   The shipped price is a piecewise multiplicative GAM in log space (lib/gam.ts),
+//   fitted on the snapshot's 128 traded protocols:
+//
+//     log(implied value) = log(TVL) + level + category offset + TVL-shape offset
+//                          + momentum offset + age offset
+//
+//   Each offset is a shrunk binned median of backfitting residuals: the TVL shape is a
+//   free step function of log TVL in 6 bins, forced non-increasing (isotonic), so size
+//   is priced by a learned curve rather than one global elasticity; momentum is binned
+//   on the clamped 7-day change; age is binned on normalised age. The configuration
+//   (6 bins, isotonic, shrinkage 3, age on) was chosen by inner 5-fold cross-validation
+//   in the v5 audit (tools/validate-v5.mjs), where six model families competed on the
+//   frozen snapshot under one protocol. Its held-out record against the model it
+//   replaced, launch-radar-3: hash split 1.300 against 1.209 (a loss), time split
+//   1.133 against 1.495, stratified split 1.250 against 1.267, pooled CV 1.285
+//   against 1.452. It ships on the entrant's explicit decision to follow pooled
+//   cross-validation over the hash-split bar the earlier rounds had set — the full
+//   record is in lib/fitted.ts (AUDIT_V5) and the dashboard's method view.
+//
+//   The board row still shows the price's working in the old decomposition's shape:
+//   "multiple" is exp(level + category offset), "scale" is exp(TVL-shape offset),
+//   "momentum" is exp(momentum offset), "maturity" is exp(age offset), breadth is 1,
+//   and the low/high range moves the point price by the GAM's own middle-half
+//   residual band on the traded protocols it was fitted on.
+//
+// How the replaced model priced (launch-radar-3, kept for the audits):
+//
+//   Every term in its price was fitted and tested held-out, twice, by tools/validate.mjs:
 //   the snapshot's 128 traded protocols were split two ways (by a hash of the slug, and by
 //   listing time), each term's variants were fitted on a training half alone, and a term
 //   shipped only if it cut the held-out half's median absolute log error by at least 0.5%
@@ -78,9 +105,10 @@ export class SnapshotError extends Error {
   }
 }
 
-import { FITTED_PARAMS, VALIDATION } from './fitted.ts';
+import { AUDIT_V5, FITTED_PARAMS, VALIDATION } from './fitted.ts';
+import { GAM_CONFIG, fitGam, gamFullFitMdale, gamParts, gamResidualBand, type GamModel } from './gam.ts';
 
-export const MODEL_VERSION = 'launch-radar-3';
+export const MODEL_VERSION = 'launch-radar-4';
 
 /** Every constant the model prices with, gathered as one set the validation harness can vary. */
 export interface ModelParams {
@@ -359,14 +387,46 @@ export interface LiveRow {
   multiple: number;
 }
 
+/** The shipped GAM's summary, as the dashboard states it: configuration and fit band. */
+export interface GamSummary {
+  version: string;
+  kind: string;
+  bins: number;
+  iso: boolean;
+  shrink: number;
+  age: boolean;
+  fit_n: number;
+  band_low: number;
+  band_high: number;
+  full_fit_mdale: number;
+}
+
+/** One model family's shipped-form held-out reads in the v5 audit. */
+export interface AuditFamily {
+  family: string;
+  config: string;
+  a: number;
+  b: number;
+  c: number;
+  pooled: number;
+}
+
+/** The v5 audit record the method view renders: six families, one protocol, one table. */
+export interface AuditV5 {
+  as_of: string;
+  incumbent: { model: string; a: number; b: number; c: number; pooled: number };
+  families: AuditFamily[];
+}
+
 /** Everything the dashboard renders: the board, the comparables and the model that priced them. */
 export interface RadarData {
   as_of: string;
   source: string;
   floor_usd: number;
   model_version: string;
-  model: ModelParams;
+  model: GamSummary;
   validation: ValidationReport;
+  audit_v5: AuditV5;
   scanned: number;
   watchlist_size: number;
   board_size: number;
@@ -378,16 +438,24 @@ export interface RadarData {
   live: LiveRow[];
 }
 
-/** The protocols the board ranks, most valuable first, with ranks 1..n. */
-export function buildBoard(snapshot: Snapshot, comps: Comparables, params: ModelParams): BoardRow[] {
+/**
+ * The protocols the board ranks, most valuable first, with ranks 1..n. Prices come
+ * from the fitted GAM; the row's model block restates the GAM's log-space pieces in
+ * the dashboard's multiplicative shape (see the header comment), and the range moves
+ * the point price by the GAM's own middle-half residual band on its fit set.
+ */
+export function buildBoard(
+  snapshot: Snapshot,
+  comps: Comparables,
+  gam: GamModel,
+  band: { low: number; high: number },
+): BoardRow[] {
   const watch = new Set(snapshot.watchlist);
   const chosen = snapshot.protocols.filter((p) => watch.has(p.slug) || isRankable(p));
   const scored = chosen.map((p) => {
-    const m = multiplesFor(p, comps, params);
-    const f = factorsFor(p, snapshot.as_of, params);
-    const adj = f.scale * f.momentum * f.maturity * f.breadth;
-    const implied = Math.max(1, Math.round(p.tvl_usd * m.multiple * adj));
-    return { p, m, f, implied };
+    const parts = gamParts(gam, p, snapshot.as_of);
+    const implied = Math.max(1, Math.round(Math.exp(parts.logValue)));
+    return { p, parts, implied, age: ageDays(snapshot.as_of, p.listed_at) };
   });
   scored.sort(
     (a, b) =>
@@ -395,33 +463,36 @@ export function buildBoard(snapshot: Snapshot, comps: Comparables, params: Model
       b.p.tvl_usd - a.p.tvl_usd ||
       (a.p.slug < b.p.slug ? -1 : a.p.slug > b.p.slug ? 1 : 0),
   );
-  return scored.map((s, i) => ({
-    rank: i + 1,
-    slug: s.p.slug,
-    name: s.p.name,
-    category: s.p.category,
-    chains: s.p.chains,
-    tvl_usd: s.p.tvl_usd,
-    change_7d: s.p.change_7d,
-    listed_at: s.p.listed_at,
-    age_days: s.f.age,
-    watchlist: watch.has(s.p.slug),
-    token_status: 'pre-token',
-    implied_value_usd: s.implied,
-    model: {
-      multiple: round4(s.m.multiple),
-      multiple_low: round4(s.m.low),
-      multiple_high: round4(s.m.high),
-      category_comparables: s.m.categoryN,
-      scale: round4(s.f.scale),
-      momentum: round4(s.f.momentum),
-      maturity: round4(s.f.maturity),
-      breadth: round4(s.f.breadth),
-      implied_low_usd: Math.max(1, Math.round(s.p.tvl_usd * s.m.low * s.f.momentum * s.f.maturity * s.f.breadth * s.f.scale)),
-      implied_high_usd: Math.max(1, Math.round(s.p.tvl_usd * s.m.high * s.f.momentum * s.f.maturity * s.f.breadth * s.f.scale)),
-    },
-    farm_steps: farmSteps(s.p, s.f.age),
-  }));
+  return scored.map((s, i) => {
+    const multiple = Math.exp(s.parts.level + s.parts.category);
+    return {
+      rank: i + 1,
+      slug: s.p.slug,
+      name: s.p.name,
+      category: s.p.category,
+      chains: s.p.chains,
+      tvl_usd: s.p.tvl_usd,
+      change_7d: s.p.change_7d,
+      listed_at: s.p.listed_at,
+      age_days: s.age,
+      watchlist: watch.has(s.p.slug),
+      token_status: 'pre-token' as const,
+      implied_value_usd: s.implied,
+      model: {
+        multiple: round4(multiple),
+        multiple_low: round4(multiple * band.low),
+        multiple_high: round4(multiple * band.high),
+        category_comparables: comps.byCategory.get(s.p.category ?? 'Uncategorised')?.n ?? 0,
+        scale: round4(Math.exp(s.parts.tvlShape)),
+        momentum: round4(Math.exp(s.parts.momentum)),
+        maturity: round4(Math.exp(s.parts.age)),
+        breadth: 1,
+        implied_low_usd: Math.max(1, Math.round(Math.exp(s.parts.logValue) * band.low)),
+        implied_high_usd: Math.max(1, Math.round(Math.exp(s.parts.logValue) * band.high)),
+      },
+      farm_steps: farmSteps(s.p, s.age),
+    };
+  });
 }
 
 /** The traded protocols by market cap, for the dashboard's comparables view. */
@@ -446,7 +517,10 @@ export function liveRows(snapshot: Snapshot): LiveRow[] {
 /** Everything the entry hands in: the ranked board and the dashboard's data. */
 export function buildRadar(snapshot: Snapshot, params: ModelParams = FITTED_PARAMS): { board: BoardRow[]; radar: RadarData } {
   const comps = buildComparables(snapshot.protocols, params);
-  const board = buildBoard(snapshot, comps, params);
+  const traded = snapshot.protocols.filter((p) => p.mcap_usd !== null && p.mcap_usd > 0 && p.tvl_usd > 0);
+  const gam = fitGam(traded, snapshot.as_of);
+  const band = gamResidualBand(gam, traded, snapshot.as_of);
+  const board = buildBoard(snapshot, comps, gam, band);
   const categories = [...comps.byCategory.values()]
     .filter((c) => c.n >= params.min_category_samples)
     .sort((a, b) => b.n - a.n || (a.category < b.category ? -1 : 1))
@@ -456,8 +530,20 @@ export function buildRadar(snapshot: Snapshot, params: ModelParams = FITTED_PARA
     source: snapshot.source,
     floor_usd: snapshot.floor_usd,
     model_version: MODEL_VERSION,
-    model: params,
+    model: {
+      version: MODEL_VERSION,
+      kind: 'piecewise multiplicative GAM (log space)',
+      bins: GAM_CONFIG.bins,
+      iso: GAM_CONFIG.iso,
+      shrink: GAM_CONFIG.shrink,
+      age: GAM_CONFIG.age,
+      fit_n: gam.fitN,
+      band_low: round4(band.low),
+      band_high: round4(band.high),
+      full_fit_mdale: gamFullFitMdale(gam, traded, snapshot.as_of),
+    },
     validation: VALIDATION,
+    audit_v5: AUDIT_V5,
     scanned: snapshot.protocols.length,
     watchlist_size: snapshot.watchlist.length,
     board_size: board.length,

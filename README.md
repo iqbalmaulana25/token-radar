@@ -1,4 +1,4 @@
-# Launch Radar — every value term fitted and tested held-out twice
+# Launch Radar — a cross-validated GAM prices every launch
 
 [![make.fun · token-radar-01](https://make.fun/badge/token-radar-01.svg)](https://make.fun/bounty/token-radar-01?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
 [![rank](https://make.fun/badge/token-radar-01/iqbalmaulana25/token-radar/rank.svg)](https://make.fun/bounty/token-radar-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
@@ -6,20 +6,22 @@
 
 A radar for protocols that have not issued a token yet. It reads the competition's frozen DefiLlama snapshot (758 protocols, as of 2026-11-14), prices the ones that record no token against the ones that do, and ranks **198 pre-token protocols by implied value** — every one of the 40 watchlist protocols covered, plus 158 early finds below the watchlist's $50M floor. It emits the ranked board (`board.json`), a self-contained dashboard (`dashboard/` + `data.js`) with a per-protocol detail view and farm plan for every row, and three screenshots of the dashboard itself.
 
-What changed in this version is not the shape of the model but how it earned its terms. launch-radar-2's constants were set by hand and fitted once, in-sample. launch-radar-3 keeps only what survives a blind test: each candidate term was fitted on half of the 128 traded protocols and scored on the held-out half, **twice — on a slug-hash split and on a time split** — and a term ships only if both splits keep it. Three of the old model's six terms failed and are gone; the dashboard's **Method & validation** view shows the whole record, errors included.
+What changed in this version is the shape of the model itself. launch-radar-3 (the previous version, whose full record is kept below) priced with three hand-shaped terms that survived a blind test. launch-radar-4 replaces them with a **piecewise multiplicative GAM** whose pieces are learned step functions, chosen by cross-validation in an audit of six model families (the v5 audit, below). On pooled cross-validation and on the time split it is the more accurate model; on the hash split it loses to the model it replaced, and it ships anyway — on the entrant's explicit decision to follow pooled CV over the hash-split bar the earlier rounds had set. That decision, with the table it was made from, is recorded in **The ship decision** below and in the dashboard's **Method & validation** view. Nothing about it is smoothed over.
 
-## The model (launch-radar-3)
+## The model (launch-radar-4)
 
 ```
-implied value = TVL × category multiple × scale × momentum
+log(implied value) = log(TVL) + level + category offset + TVL-shape offset
+                     + momentum offset + age offset
 ```
 
-- **Category multiple** — the median market-cap-to-TVL ratio of traded tokens in the protocol's own category (128 comparables; global median 0.214×), shrunk toward the global figure with fitted shrinkage **K=3**; below 3 comparables the global median carries the price.
-- **Scale** — value bends by **TVL^0.9** around a $100M reference, so a dollar of TVL in a large protocol prices a little lower than in a small one. A plain TVL×multiple model assumes size is free; the held-out data says it is not.
-- **Momentum** — **1 + 0.6 × clamp(7-day TVL change, −40%, +60%) / 100**.
-- **Range** — the category's p25 and p75 multiples in place of the median, other factors unchanged. The ranges are wide because the ratios are wide; ratio winsorising was tested and dropped (below), so the tails are shown as they are.
+- **Level + category offset** — a constant plus a per-category offset, each a shrunk median of backfitting residuals (shrinkage 3 toward a zero offset); a category with no traded protocols gets a zero offset and the level carries its price.
+- **TVL shape** — a free step function of log TVL in **6 quantile bins**, forced **non-increasing** (isotonic): a dollar of TVL in a large protocol prices lower than in a small one, by a curve the data drew instead of one global elasticity.
+- **Momentum** — binned offsets on the 7-day TVL change (clamped to −40%…+60%, five fixed bins).
+- **Age** — binned offsets on normalised age (log age over a five-year span, four quantile bins); undated protocols take the fit set's median age.
+- **Range** — the point price moved by the model's own middle-half band on the traded protocols it was fitted on (the p25–p75 of its fit residuals, ×0.474 to ×2.927). The ranges are wide because the model's errors are wide; they are shown as they are.
 
-Every figure comes from the snapshot record. No protocol name is special-cased anywhere; a protocol whose token already trades is never ranked — it sits in the comparables the board is priced against.
+The pieces are fitted by three backfitting passes over the 128 traded protocols (`lib/gam.ts`, ported line for line from the audit harness that chose the configuration: 6 bins, isotonic, shrinkage 3, age on). Every figure comes from the snapshot record. No protocol name is special-cased anywhere; a protocol whose token already trades is never ranked — it sits in the comparables the GAM is fitted on.
 
 ## The validation — fitted and tested held-out twice
 
@@ -55,11 +57,29 @@ The v4 round exhausted the shipped model's own family: every term tweak that gai
 
 Every challenger beat the incumbent on the time split, most of them heavily (blend 0.979, bagged trees 1.027, kernel 1.069, the GAM 1.133, linear 1.169, boosting 1.491 — against 1.495), and five of the six beat it in pooled cross-validation (kernel 1.216, linear 1.226, blend 1.279, GAM 1.286, bagged trees 1.348 — against 1.452). On the honest generalisation reads, several of these models are simply better than the one shipped. On the hash split, every one of them lost: the GAM came closest at 1.300 against 1.209, and the rest spread from 1.308 to 1.545. No family cleared both splits under any of the three selection procedures — the nested reads, whose configurations never see the split they are scored on, told the same story.
 
-One caveat belongs on the record: launch-radar-3's own constants were chosen in the v3 round by their combined held-out error on these very two splits, so the hash split is partly a home game for the incumbent, and its 1.209 there is flattered in a way no honestly-selected challenger can match. That is a reason to distrust the split as a pure measure of the incumbent — it is not a reason to move a bar after the run that failed to clear it. Under the bar set in advance, **launch-radar-3 remains the shipped model, unchanged**; the audit's harness is deterministic and its record reproducible, and the shipped outputs are byte-identical to the previous build (dossier sha256 7fd05535…). What the v5 round establishes is narrower and more useful than a new model: the remaining error is not a failure of functional form. Five unrelated families land in the same place — better on the future than the incumbent, worse on the hash split — which points at the snapshot itself (128 traded protocols, a third of them undated) as the binding constraint, not at the shape of the price.
+One caveat belongs on the record: launch-radar-3's own constants were chosen in the v3 round by their combined held-out error on these very two splits, so the hash split is partly a home game for the incumbent, and its 1.209 there is flattered in a way no honestly-selected challenger can match. That is a reason to distrust the split as a pure measure of the incumbent — it is not a reason to move a bar after the run that failed to clear it. Under the bar set in advance, **launch-radar-3 remained the shipped model**; the audit's harness is deterministic and its record reproducible, and the shipped outputs were byte-identical to the previous build (dossier sha256 7fd05535…). What the v5 round establishes is narrower and more useful than a new model: the remaining error is not a failure of functional form. Five unrelated families land in the same place — better on the future than the incumbent, worse on the hash split — which points at the snapshot itself (128 traded protocols, a third of them undated) as the binding constraint, not at the shape of the price.
+
+## The ship decision — launch-radar-4 ships the GAM
+
+The v5 audit closed under its own bar with no ship. The entrant then read the audit's table and directed that the GAM ship as launch-radar-4, following pooled cross-validation over the split-A bar. The table the decision was made from (shipped-form held-out MdALE; lower is better):
+
+| Family (chosen configuration) | A — hash | B — time | C — stratified | Pooled CV |
+|---|---|---|---|---|
+| launch-radar-3 (incumbent) | **1.209** | 1.495 | 1.267 | 1.452 |
+| Bagged trees (depth 3, min-leaf 6) | 1.361 | 1.027 | 1.476 | 1.348 |
+| Gradient boosting (square loss, 200 rounds, depth 2) | 1.308 | 1.491 | 1.820 | 1.697 |
+| Kernel / k-NN (k 21, plain median) | 1.545 | 1.069 | 1.391 | 1.216 |
+| **Piecewise GAM (6 TVL bins, isotonic, shrinkage 3, age on)** | 1.300 | **1.133** | **1.250** | 1.285 |
+| Linear (ridge λ=30, + (log TVL)²) | 1.369 | 1.170 | 1.310 | 1.226 |
+| Stacked blend (kernel at its chosen config, weight 0.7) | 1.390 | 0.979 | 1.296 | 1.279 |
+
+Why the GAM, on that table: it is the only challenger that beats the incumbent on three of the four reads — time, stratified and pooled — and it is the closest of the six on the fourth (hash, 1.300 against the incumbent's home-game 1.209). The kernel and linear families post lower pooled CV, but both lose the stratified split outright and fall much further behind on the hash split; the blend owns the time split and loses both other splits. Pooled CV is also the read that re-chooses every configuration inside every fold, so nothing in it is scored on a split its constants were picked on — the property split A lacks for the incumbent. This was a judgement call by the entrant, not a protocol result, and it is recorded as one: the bar was not moved retroactively inside the audit; the audit stands as written above, and the decision to ship against it is the entrant's, stated here and in the dashboard.
+
+The shipped GAM is the audit's implementation ported into `lib/gam.ts` and fitted on all 128 traded protocols; the port reproduces the harness's numbers exactly (shipped-form A 1.2996, B 1.1326, C 1.2503; full-fit MdALE 0.900 — an in-sample figure, quoted only to be dismissed as evidence, exactly as launch-radar-3's was).
 
 ## What it cannot do
 
-Its typical held-out price is off by a factor of ≈3.3 (hash split) to ≈4.5 (time split); only 29% and 19% of held-out protocols were priced within 2×. Treat every implied value as a ranking with a wide range around it, never as a quote. The time split is the harder and more honest test — protocols listed later price worse than earlier ones — so expect drift as the market regime moves. 33 of the 128 traded protocols record no listing date and sit out the time split. And the model prices a token as if issued against the record in the snapshot: it says nothing about whether or when one is issued.
+Its typical held-out price is off by a factor of ≈3.7 (hash split) to ≈3.1 (time split); only 29% and 34% of held-out protocols were priced within 2×. Treat every implied value as a ranking with a wide range around it, never as a quote. The time split is the harder and more honest test — protocols listed later price worse than earlier ones — so expect drift as the market regime moves. 33 of the 128 traded protocols record no listing date and sit out the time split. And the model prices a token as if issued against the record in the snapshot: it says nothing about whether or when one is issued.
 
 ## Farm plans
 
@@ -77,7 +97,7 @@ mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input /input/snapshot.json
 
 `/input` is where the grader mounts the sealed snapshot; `--input` also accepts a directory holding `snapshot.json`, and `MAKEFUN_OUTPUT_DIR` stands in for `/output` outside the grader. The run writes `board.json`, `data.js`, `dashboard/`, `screenshots/` and `dossier.json` into the output directory, and the same input always produces the same bytes. Reproduce the validation with `node tools/validate.mjs`. No dependencies anywhere; Node ≥ 22 runs the TypeScript directly.
 
-Model: **launch-radar-3** · Source: DefiLlama snapshot, as of 2026-11-14 · Not investment advice.
+Model: **launch-radar-4** · Source: DefiLlama snapshot, as of 2026-11-14 · Not investment advice.
 
 ---
 

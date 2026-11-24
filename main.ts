@@ -1,9 +1,9 @@
 // Launch Radar: a token launch radar entry for make.fun's token-radar-01 (Node 22, stdlib only).
 //
 // The program reads the sealed snapshot from /input/snapshot.json (or --input <file|dir>), prices
-// every pre-token protocol with the fitted comparables model in lib/model.ts (launch-radar-3:
-// every term fitted and tested held-out twice by tools/validate.mjs, record in lib/fitted.ts),
-// writes the ranked board
+// every pre-token protocol with the shipped model in lib/model.ts and lib/gam.ts (launch-radar-4:
+// a piecewise multiplicative GAM whose configuration the v5 audit's inner cross-validation
+// chose, record in lib/fitted.ts), writes the ranked board
 // to /output/board.json and the dashboard's data to /output/data.js, copies this repository's
 // dashboard/ and screenshots/ into /output, and writes /output/dossier.json last with
 // buildDossier from vendor/makefun-board.ts, so the dossier is built from the finished output.
@@ -97,7 +97,7 @@ writeFileSync(
 process.stdout.write(
   `launch radar: ${snapshot.protocols.length} protocols scanned, ${snapshot.watchlist.length} on the watchlist, ` +
     `${board.length} pre-token rows ranked (${radar.early_size} beyond the watchlist), ${radar.live_size} traded comparables set aside\n` +
-    `launch radar: model ${radar.model_version}: terms kept on both held-out splits: ${radar.validation.shipped_terms.join(', ')}; ` +
-    `dropped: ${radar.validation.dropped_terms.join(', ')}\n` +
+    `launch radar: model ${radar.model_version}: piecewise GAM (${radar.model.bins} TVL bins, isotonic, shrinkage ${radar.model.shrink}, age on), ` +
+    `fitted on ${radar.model.fit_n} traded protocols; v5 audit pooled CV 1.285 against launch-radar-3's 1.452, shipped on the entrant's pooled-CV decision\n` +
     `launch radar: wrote board.json, data.js, dashboard/ (${dashboardFiles} files), screenshots/ (${shotNames.length} images) and dossier.json in ${out}\n`,
 );
