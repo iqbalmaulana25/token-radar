@@ -1,0 +1,685 @@
+{
+  "as_of": "2026-11-14",
+  "traded_n": 128,
+  "folds": 5,
+  "incumbent": {
+    "model": "launch-radar-3",
+    "shipped_form_heldout": [
+      {
+        "split": "A: hash split (slug coin flip)",
+        "n": 69,
+        "mdale": 1.2086239416369615,
+        "bias": -0.3808491535395604,
+        "within_2x": 0.2898550724637681
+      },
+      {
+        "split": "B: time split (fit the past, test the future)",
+        "n": 47,
+        "mdale": 1.4952714794339883,
+        "bias": -0.0051653341084886735,
+        "within_2x": 0.19148936170212766
+      },
+      {
+        "split": "C: stratified split (alternating within each category)",
+        "n": 53,
+        "mdale": 1.2670857750235562,
+        "bias": 0.10235578172293622,
+        "within_2x": 0.3018867924528302
+      }
+    ],
+    "pooled_cv_mdale": 1.4515632957772444,
+    "full_fit": {
+      "n": 128,
+      "mdale": 1.2143453955245178,
+      "bias": 0.049772019362236755,
+      "within_2x": 0.2890625
+    }
+  },
+  "families": [
+    {
+      "family": "trees-bag",
+      "label": "Bagged regression trees (200 trees, median leaves)",
+      "chosen_config": "depth 3, min-leaf 6",
+      "chosen_inner_cv": 1.3360380946602466,
+      "shipped_form_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "n": 69,
+          "mdale": 1.3612918019607942,
+          "bias": -0.25121113171422965,
+          "within_2x": 0.3333333333333333
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "n": 47,
+          "mdale": 1.0269529112256954,
+          "bias": 0.2807686649030551,
+          "within_2x": 0.3829787234042553
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "n": 53,
+          "mdale": 1.476172198977796,
+          "bias": -0.16060319198863746,
+          "within_2x": 0.22641509433962265
+        }
+      ],
+      "nested_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "config": "depth 5, min-leaf 3",
+          "n": 69,
+          "mdale": 1.3739827253701726,
+          "bias": -0.2831497305603952,
+          "within_2x": 0.30434782608695654
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "config": "depth 4, min-leaf 6",
+          "n": 47,
+          "mdale": 1.2046965770715872,
+          "bias": 0.27690343966840014,
+          "within_2x": 0.3617021276595745
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "config": "depth 4, min-leaf 6",
+          "n": 53,
+          "mdale": 1.4372291654161415,
+          "bias": -0.21468172062889407,
+          "within_2x": 0.20754716981132076
+        }
+      ],
+      "pooled_cv_mdale": 1.3478043492793226,
+      "pooled_folds": [
+        {
+          "fold": 0,
+          "n": 34,
+          "config": "depth 5, min-leaf 6",
+          "mdale": 1.546128924567471,
+          "bias": -0.06300543009440997,
+          "within_2x": 0.29411764705882354
+        },
+        {
+          "fold": 1,
+          "n": 26,
+          "config": "depth 3, min-leaf 3",
+          "mdale": 1.2572049769139335,
+          "bias": 0.08863062949850399,
+          "within_2x": 0.34615384615384615
+        },
+        {
+          "fold": 2,
+          "n": 15,
+          "config": "depth 3, min-leaf 6",
+          "mdale": 1.3003362448657043,
+          "bias": -0.24592183072325494,
+          "within_2x": 0.26666666666666666
+        },
+        {
+          "fold": 3,
+          "n": 26,
+          "config": "depth 3, min-leaf 3",
+          "mdale": 1.455924383047063,
+          "bias": -0.09502301544220638,
+          "within_2x": 0.15384615384615385
+        },
+        {
+          "fold": 4,
+          "n": 27,
+          "config": "depth 5, min-leaf 6",
+          "mdale": 1.1794272170024414,
+          "bias": 0.27253764322337637,
+          "within_2x": 0.3333333333333333
+        }
+      ],
+      "full_fit": {
+        "n": 128,
+        "mdale": 1.1829879322042665,
+        "bias": 0.06263235938867293,
+        "within_2x": 0.375
+      },
+      "beats_incumbent_on_A": false,
+      "beats_incumbent_on_B": true
+    },
+    {
+      "family": "trees-boost",
+      "label": "Gradient boosting (stage-wise trees, rate 0.05)",
+      "chosen_config": "square loss, 200 rounds, depth 2",
+      "chosen_inner_cv": 1.4675963506059133,
+      "shipped_form_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "n": 69,
+          "mdale": 1.3083200145492562,
+          "bias": -0.40086106633460844,
+          "within_2x": 0.30434782608695654
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "n": 47,
+          "mdale": 1.4908510225345317,
+          "bias": 0.2523913265310039,
+          "within_2x": 0.2765957446808511
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "n": 53,
+          "mdale": 1.8201421412522283,
+          "bias": -0.1529201030425782,
+          "within_2x": 0.18867924528301888
+        }
+      ],
+      "nested_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "config": "absolute loss, 200 rounds, depth 2",
+          "n": 69,
+          "mdale": 1.3260811751344068,
+          "bias": -0.1376760558591438,
+          "within_2x": 0.2318840579710145
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "config": "absolute loss, 200 rounds, depth 2",
+          "n": 47,
+          "mdale": 1.6999932192851421,
+          "bias": 0.20079755507677313,
+          "within_2x": 0.3191489361702128
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "config": "square loss, 200 rounds, depth 2",
+          "n": 53,
+          "mdale": 1.8201421412522283,
+          "bias": -0.1529201030425782,
+          "within_2x": 0.18867924528301888
+        }
+      ],
+      "pooled_cv_mdale": 1.6969564915572402,
+      "pooled_folds": [
+        {
+          "fold": 0,
+          "n": 34,
+          "config": "absolute loss, 200 rounds, depth 2",
+          "mdale": 1.8042904613978266,
+          "bias": 0.1894352816594546,
+          "within_2x": 0.29411764705882354
+        },
+        {
+          "fold": 1,
+          "n": 26,
+          "config": "square loss, 200 rounds, depth 2",
+          "mdale": 1.6991690748406283,
+          "bias": 0.2899260280774972,
+          "within_2x": 0.19230769230769232
+        },
+        {
+          "fold": 2,
+          "n": 15,
+          "config": "square loss, 200 rounds, depth 2",
+          "mdale": 1.5527370502148745,
+          "bias": -0.4571541122482168,
+          "within_2x": 0.13333333333333333
+        },
+        {
+          "fold": 3,
+          "n": 26,
+          "config": "square loss, 400 rounds, depth 3",
+          "mdale": 2.228452797425992,
+          "bias": -0.14145865380043562,
+          "within_2x": 0.2692307692307692
+        },
+        {
+          "fold": 4,
+          "n": 27,
+          "config": "square loss, 200 rounds, depth 2",
+          "mdale": 1.2001330739068798,
+          "bias": 0.3058424967410986,
+          "within_2x": 0.4444444444444444
+        }
+      ],
+      "full_fit": {
+        "n": 128,
+        "mdale": 0.8686676736382877,
+        "bias": -9.582465800711537e-7,
+        "within_2x": 0.421875
+      },
+      "beats_incumbent_on_A": false,
+      "beats_incumbent_on_B": true
+    },
+    {
+      "family": "kernel",
+      "label": "Kernel / k-nearest neighbours (standardised space, median)",
+      "chosen_config": "k 21, plain median",
+      "chosen_inner_cv": 1.2452660194053227,
+      "shipped_form_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "n": 69,
+          "mdale": 1.5453075348321583,
+          "bias": -0.2066535143388395,
+          "within_2x": 0.2608695652173913
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "n": 47,
+          "mdale": 1.0689979104084664,
+          "bias": -0.06997076233997394,
+          "within_2x": 0.425531914893617
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "n": 53,
+          "mdale": 1.390691963718048,
+          "bias": -0.23938313288843635,
+          "within_2x": 0.32075471698113206
+        }
+      ],
+      "nested_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "config": "k 21, plain median",
+          "n": 69,
+          "mdale": 1.5453075348321583,
+          "bias": -0.2066535143388395,
+          "within_2x": 0.2608695652173913
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "config": "k 8, Gaussian-weighted median",
+          "n": 47,
+          "mdale": 1.2205719918797229,
+          "bias": 0.5610410614823289,
+          "within_2x": 0.2765957446808511
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "config": "k 8, Gaussian-weighted median",
+          "n": 53,
+          "mdale": 1.4262436161956664,
+          "bias": -0.2026041525213619,
+          "within_2x": 0.20754716981132076
+        }
+      ],
+      "pooled_cv_mdale": 1.215707148487129,
+      "pooled_folds": [
+        {
+          "fold": 0,
+          "n": 34,
+          "config": "k 13, Gaussian-weighted median",
+          "mdale": 1.5216072425361489,
+          "bias": -0.026083104381240813,
+          "within_2x": 0.29411764705882354
+        },
+        {
+          "fold": 1,
+          "n": 26,
+          "config": "k 21, Gaussian-weighted median",
+          "mdale": 1.0381571679217974,
+          "bias": -0.15649112057639142,
+          "within_2x": 0.38461538461538464
+        },
+        {
+          "fold": 2,
+          "n": 15,
+          "config": "k 21, plain median",
+          "mdale": 1.0790444169015156,
+          "bias": -0.6630705143931457,
+          "within_2x": 0.4666666666666667
+        },
+        {
+          "fold": 3,
+          "n": 26,
+          "config": "k 13, plain median",
+          "mdale": 1.4163941062527927,
+          "bias": -0.10555838169925032,
+          "within_2x": 0.15384615384615385
+        },
+        {
+          "fold": 4,
+          "n": 27,
+          "config": "k 13, plain median",
+          "mdale": 1.0233328088233904,
+          "bias": 0.07200556507911177,
+          "within_2x": 0.3333333333333333
+        }
+      ],
+      "full_fit": {
+        "n": 128,
+        "mdale": 1.1254213520484093,
+        "bias": -0.1613948882625752,
+        "within_2x": 0.359375
+      },
+      "beats_incumbent_on_A": false,
+      "beats_incumbent_on_B": true
+    },
+    {
+      "family": "gam",
+      "label": "Piecewise multiplicative GAM (binned/isotonic step functions)",
+      "chosen_config": "6 TVL bins, isotonic, shrinkage 3, age on",
+      "chosen_inner_cv": 1.226073438529063,
+      "shipped_form_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "n": 69,
+          "mdale": 1.2995651654691667,
+          "bias": -0.17191456588463286,
+          "within_2x": 0.2898550724637681
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "n": 47,
+          "mdale": 1.1326362877209561,
+          "bias": 0.6313510121578101,
+          "within_2x": 0.3404255319148936
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "n": 53,
+          "mdale": 1.250267844896257,
+          "bias": 0.06400004978693528,
+          "within_2x": 0.18867924528301888
+        }
+      ],
+      "nested_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "config": "6 TVL bins, free, shrinkage 3, age off",
+          "n": 69,
+          "mdale": 1.2135011973305012,
+          "bias": 0.07792667842652055,
+          "within_2x": 0.34782608695652173
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "config": "10 TVL bins, isotonic, shrinkage 3, age on",
+          "n": 47,
+          "mdale": 1.5566050932082245,
+          "bias": 0.7641246731028973,
+          "within_2x": 0.3404255319148936
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "config": "6 TVL bins, isotonic, shrinkage 8, age off",
+          "n": 53,
+          "mdale": 1.3158934020598423,
+          "bias": 0.3167422661426845,
+          "within_2x": 0.22641509433962265
+        }
+      ],
+      "pooled_cv_mdale": 1.2854551168316797,
+      "pooled_folds": [
+        {
+          "fold": 0,
+          "n": 34,
+          "config": "6 TVL bins, isotonic, shrinkage 8, age off",
+          "mdale": 1.3401139198187035,
+          "bias": 0.09693243942639786,
+          "within_2x": 0.3235294117647059
+        },
+        {
+          "fold": 1,
+          "n": 26,
+          "config": "6 TVL bins, free, shrinkage 3, age off",
+          "mdale": 1.132469697349995,
+          "bias": 0.06643295144481862,
+          "within_2x": 0.34615384615384615
+        },
+        {
+          "fold": 2,
+          "n": 15,
+          "config": "6 TVL bins, isotonic, shrinkage 8, age off",
+          "mdale": 1.222171785711895,
+          "bias": -0.4243317535035055,
+          "within_2x": 0.2
+        },
+        {
+          "fold": 3,
+          "n": 26,
+          "config": "6 TVL bins, isotonic, shrinkage 3, age off",
+          "mdale": 1.4502750144787067,
+          "bias": 0.061433752517179446,
+          "within_2x": 0.11538461538461539
+        },
+        {
+          "fold": 4,
+          "n": 27,
+          "config": "6 TVL bins, isotonic, shrinkage 8, age on",
+          "mdale": 1.2822451667990986,
+          "bias": 0.15798325901339386,
+          "within_2x": 0.2962962962962963
+        }
+      ],
+      "full_fit": {
+        "n": 128,
+        "mdale": 0.9000015407812274,
+        "bias": 0.1469765801394045,
+        "within_2x": 0.4296875
+      },
+      "beats_incumbent_on_A": false,
+      "beats_incumbent_on_B": true
+    },
+    {
+      "family": "linear",
+      "label": "Linear models (ridge closed form; LAD median regression by IRLS)",
+      "chosen_config": "ridge lambda 30, + (log TVL)^2",
+      "chosen_inner_cv": 1.1675265523093636,
+      "shipped_form_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "n": 69,
+          "mdale": 1.3686218906932073,
+          "bias": -0.08422172719684545,
+          "within_2x": 0.34782608695652173
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "n": 47,
+          "mdale": 1.1694685535302085,
+          "bias": 0.6088624371953832,
+          "within_2x": 0.3191489361702128
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "n": 53,
+          "mdale": 1.3096750788854727,
+          "bias": 0.11848429649732146,
+          "within_2x": 0.20754716981132076
+        }
+      ],
+      "nested_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "config": "LAD median regression, + (log TVL)^2",
+          "n": 69,
+          "mdale": 1.2777883131926089,
+          "bias": -0.1291581127373971,
+          "within_2x": 0.30434782608695654
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "config": "ridge lambda 10, + (log TVL)^2",
+          "n": 47,
+          "mdale": 1.2643164421427606,
+          "bias": 0.5239223878005161,
+          "within_2x": 0.2978723404255319
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "config": "ridge lambda 30, + (log TVL)^2",
+          "n": 53,
+          "mdale": 1.3096750788854727,
+          "bias": 0.11848429649732146,
+          "within_2x": 0.20754716981132076
+        }
+      ],
+      "pooled_cv_mdale": 1.22574914618944,
+      "pooled_folds": [
+        {
+          "fold": 0,
+          "n": 34,
+          "config": "ridge lambda 30, + (log TVL)^2",
+          "mdale": 1.453456303621917,
+          "bias": 0.1788729182201959,
+          "within_2x": 0.3235294117647059
+        },
+        {
+          "fold": 1,
+          "n": 26,
+          "config": "ridge lambda 30",
+          "mdale": 1.0968133921276095,
+          "bias": 0.0916290420183608,
+          "within_2x": 0.34615384615384615
+        },
+        {
+          "fold": 2,
+          "n": 15,
+          "config": "ridge lambda 30",
+          "mdale": 1.215295991588615,
+          "bias": -0.44216505868668915,
+          "within_2x": 0.3333333333333333
+        },
+        {
+          "fold": 3,
+          "n": 26,
+          "config": "ridge lambda 30",
+          "mdale": 1.7129297916259958,
+          "bias": -0.16978569371435775,
+          "within_2x": 0.11538461538461539
+        },
+        {
+          "fold": 4,
+          "n": 27,
+          "config": "ridge lambda 30, + (log TVL)^2",
+          "mdale": 0.6502502519830635,
+          "bias": 0.496363234913523,
+          "within_2x": 0.5185185185185185
+        }
+      ],
+      "full_fit": {
+        "n": 128,
+        "mdale": 1.2199744505311116,
+        "bias": 0.1111809797726482,
+        "within_2x": 0.3671875
+      },
+      "beats_incumbent_on_A": false,
+      "beats_incumbent_on_B": true
+    },
+    {
+      "family": "blend",
+      "label": "Stacked blend of launch-radar-3 with a partner family (log-space average)",
+      "chosen_config": "kernel at its chosen config, weight 0.7",
+      "chosen_inner_cv": 1.1716484238201934,
+      "shipped_form_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "n": 69,
+          "mdale": 1.3901294986978918,
+          "bias": -0.2589122060990558,
+          "within_2x": 0.2898550724637681
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "n": 47,
+          "mdale": 0.9792018729449339,
+          "bias": -0.05052913387052827,
+          "within_2x": 0.425531914893617
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "n": 53,
+          "mdale": 1.2961068319227387,
+          "bias": -0.13686145850502485,
+          "within_2x": 0.32075471698113206
+        }
+      ],
+      "nested_heldout": [
+        {
+          "split": "A: hash split (slug coin flip)",
+          "config": "kernel at its chosen config, weight 0.7",
+          "n": 69,
+          "mdale": 1.3901294986978918,
+          "bias": -0.2589122060990558,
+          "within_2x": 0.2898550724637681
+        },
+        {
+          "split": "B: time split (fit the past, test the future)",
+          "config": "linear at its chosen config, weight 0.5",
+          "n": 47,
+          "mdale": 1.2072186637266782,
+          "bias": 0.30184855154344714,
+          "within_2x": 0.2978723404255319
+        },
+        {
+          "split": "C: stratified split (alternating within each category)",
+          "config": "kernel at its chosen config, weight 0.7",
+          "n": 53,
+          "mdale": 1.2961068319227387,
+          "bias": -0.13686145850502485,
+          "within_2x": 0.32075471698113206
+        }
+      ],
+      "pooled_cv_mdale": 1.2794445752755852,
+      "pooled_folds": [
+        {
+          "fold": 0,
+          "n": 34,
+          "config": "linear at its chosen config, weight 0.7",
+          "mdale": 1.400070970697013,
+          "bias": 0.12233987331501861,
+          "within_2x": 0.29411764705882354
+        },
+        {
+          "fold": 1,
+          "n": 26,
+          "config": "kernel at its chosen config, weight 0.5",
+          "mdale": 1.0127172368597854,
+          "bias": 0.014883701725941898,
+          "within_2x": 0.38461538461538464
+        },
+        {
+          "fold": 2,
+          "n": 15,
+          "config": "linear at its chosen config, weight 0.7",
+          "mdale": 1.4300211660623177,
+          "bias": -0.3479690635765054,
+          "within_2x": 0.4
+        },
+        {
+          "fold": 3,
+          "n": 26,
+          "config": "kernel at its chosen config, weight 0.7",
+          "mdale": 1.551134520207337,
+          "bias": -0.15589070847921066,
+          "within_2x": 0.15384615384615385
+        },
+        {
+          "fold": 4,
+          "n": 27,
+          "config": "kernel at its chosen config, weight 0.3",
+          "mdale": 1.003278982551473,
+          "bias": 0.25848266996156044,
+          "within_2x": 0.3333333333333333
+        }
+      ],
+      "full_fit": {
+        "n": 128,
+        "mdale": 1.0534768757143915,
+        "bias": -0.09804481597513187,
+        "within_2x": 0.328125
+      },
+      "beats_incumbent_on_A": false,
+      "beats_incumbent_on_B": true
+    }
+  ],
+  "verdict": {
+    "bar": {
+      "A_below": 1.2086239416369615,
+      "B_below": 1.4952714794339883
+    },
+    "families_clearing_both": [],
+    "ship": false,
+    "ship_family": null
+  }
+}
